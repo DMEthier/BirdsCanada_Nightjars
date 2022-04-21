@@ -1,0 +1,133 @@
+# Analysis {#Start4}
+
+```{r tidyr4, include = FALSE, warning = FALSE}
+
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=50), tidy = FALSE)
+
+```
+
+Now we will create some trend summaries to see what is going on with the Nightjar survey program.
+
+First, import the data and reload your libraries if you are starting a new session. 
+```{r data lib, message=FALSE, eval=FALSE}
+
+require(tidyverse)
+require(INLA)
+
+dat<-read.csv("Data/Filter_Nightjar.csv")
+event.data<-read.csv("Output/Events.csv")
+
+out.dir <- paste("Output/")
+dat.dir <- paste("Data/")
+
+```
+
+```{r anal.dat, echo = TRUE, message = FALSE}
+
+#select desired data columns for analysis
+obs<-dat %>% select("CommonName", "SamplingEventIdentifier", "SurveyAreaIdentifier", "SiteCode", "survey_year", "CollectorNumber", "Prov", "ObservationCount")
+
+#select just target species
+obs<-obs %>% filter(CommonName %in% c("Common Nighthawk", "Common Poorwill", "Eastern Whip-poor-will"))
+
+```
+
+We are ready to develop the species-specific analysis loop
+
+```{r sp.loop, echo = TRUE, message = FALSE}
+
+## Generate species list for analysis. The species that make the cut will vary on province based on the data manipulation
+
+species.list <- unique(obs$CommonName)
+
+## Create the loop
+for(m in 1:length(species.list)) {
+
+# for testing each species
+# m<-3 
+   
+  sp.data <-NULL 
+  sp.data <- filter(obs, CommonName == species.list[m]) %>%
+      droplevels()
+  
+  print(paste("Currently analyzing species ", m, "/", species.list[m], sep = "")) 
+
+##-----------------------------------------------------------
+
+#zero fill by merging with the events data frame. 
+sp.data <- left_join(event.data, sp.data, by = c("SamplingEventIdentifier", "SurveyAreaIdentifier",  "SiteCode", "survey_year", "CollectorNumber", "Prov")) %>% mutate(ObservationCount = replace(ObservationCount, is.na(ObservationCount), 0))
+
+##----------------------------------------------------------
+
+# Limit to species observed at least once per route 
+
+# Summarize survey site to determine which species have been observed at least once (looking at the total count column) those with sum <= 1 across all survey years will be dropped from analysis (implies never observed on a route (i.e., outside range or inappropriate habitat))
+
+  site.summ <- melt(sp.data, id.var = "SiteCode",	measure.var = "ObservationCount")
+  site.summ <- cast(site.summ, SiteCode ~ variable,	fun.aggregate="sum")
+  site.sp.list <- unique(subset(site.summ, select = c("SiteCode"), ObservationCount >= 1))
+
+# Limit raw data to these species, i.e., those that were observed at least once on a route 
+  sp.data <- merge(sp.data, site.sp.list, by = c("SiteCode"))
+
+##-----------------------------------------------------------
+
+# Count the number of individuals per route as the response variable. The number of stop on a route will used as a covariate or offset in the model to control for route level effort.  
+
+sp.data<-sp.data %>% group_by(SiteCode, survey_year, CollectorNumber, Prov, nstop) %>% summarise(count=sum(ObservationCount))
+
+##-----------------------------------------------------------  
+#create a route-observer effect
+sp.data$routeobs <- paste0(sp.data$SiteCode, "-", sp.data$CollectorNumber)
+
+##----------------------------------------------------------- 
+
+#Filter out 2021 temporally since the data are not yet fully checked
+sp.data<-sp.data %>% filter(survey_year!=2021)
+
+max.yr<-max(sp.data$survey_year)  
+  
+#standardize year to most recent year  
+sp.data <- sp.data %>% mutate(std_yr = survey_year - max.yr)
+
+##-----------------------------------------------------------
+
+#Index variable
+#where k = route, t = year
+sp.data$kappa_k <- as.integer(factor(sp.data$routeobs))
+sp.data <- arrange(sp.data, std_yr)
+n_routeobs <- max(sp.data$kappa_k, na.rm=T)
+
+##-----------------------------------------------------------
+
+#Make the model 
+form1 <- count ~ std_yr +
+  # random route-observer intercepts
+  f(kappa_k, model="iid", constr=TRUE,
+    hyper = list(prec = list(prior = "pc.prec", param = c(1, 0.01)))) 
+
+##-----------------------------------------------------------
+
+#Get results
+out1<- inla(form1, family="nbinomial", data=sp.data, E=nstop, 
+            control.compute=list(cpo=T, config=T, dic=TRUE),
+            verbose=T)
+
+#View summary
+summary(out1, digit=3)
+
+fixed.out<-out1$summary.fixed[,c("mean", "sd", "0.025quant", "0.975quant")]
+fixed.out<-signif(fixed.out, digits = 4)
+fixed.out$Species <- species.list[m]
+names(fixed.out)[1:5] <- c("mean", "SD", "0.025quant", "0.975quant", "Speices")
+
+random.out<-out1$summary.hyperpar[,c("mean", "sd", "0.025quant", "0.975quant")]
+random.out<-signif(random.out, digits = 4)
+random.out$Species <- species.list[m]
+names(random.out)[1:5] <- c("mean", "SD", "0.025quant", "0.975quant", "Speices")
+  
+
+} # end sp.loop
+
+```

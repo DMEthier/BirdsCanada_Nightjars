@@ -1,0 +1,94 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+# Occupancy Analysis {#Stat5}
+
+```{r tidyr5, include = FALSE, warning = FALSE}
+
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=50), tidy = FALSE)
+
+```
+
+Now we will create an occupancy model to see what is going on with the Nightjar survey program.
+
+First, import the data and reload your libraries if you are starting a new session. 
+
+```{r data lib, message=FALSE, eval=FALSE}
+
+require(tidyverse)
+require(lubridate)
+require(reshape)
+require(unmarked)
+require(naturecounts)
+
+dat<-read.csv("Data/Filter_Nightjar.csv")
+event.data<-read.csv("Output/Events.csv")
+
+out.dir <- paste("Output/")
+dat.dir <- paste("Data/")
+
+```
+
+Now we want to prepare the data for the `unmarked` package which will accommodate our occupancy analysis. Since we have 6 X 1-min time intervals, we will use the repeated count model `pcount`. 
+
+For an occupancy analysis, the input data will fall into 3 categories:
+
+Detection histories in which the rows of the data will usually be sites and the columns will represent detection occasions or other units of replication.
+
+Site-specific covariates, which are attributes measured on each of the sites that potentially explain site-to-site variability in detection and/or occupancy.
+
+Sample-specific or "observation level" covariates, which are attributes measures at each of the sample occasions (replicates).
+
+Detection Covariates = DOY, Wind speed, air temp, moon (Yes or No), hours since sunset.  
+
+Abundance Covariates = Year, latitude, longitude 
+
+#First we will create the detection history framework.
+The matrix with observed detection history is 0's and 1's, one row per site, one column per survey.
+
+Let's start by selecting the data that we need and creating any new fields that are essential to the `unmarked` framework. 
+
+```{r clean data, eval=FALSA, message=FALSE}
+
+#use the `naturecounts` helper function to create the date fields. 
+
+dat<- format_dates(dat)
+
+#Replace codes with numeric occupancy values
+#W (wing-boom) = 1
+#C (call) = 1
+#V (visual) = 1
+#N (not detected) = 1 
+#U (unknown detection type) = 1
+
+dat <- dat %>% mutate(V1=ifelse(ObservationCount2 %in% c("W", "C", "V", "U"), 1, 0), V2=ifelse(ObservationCount3 %in% c("W", "C", "V", "U"), 1, 0), V3=ifelse(ObservationCount4 %in% c("W", "C", "V", "U"), 1, 0), V4=ifelse(ObservationCount5 %in% c("W", "C", "V", "U"), 1, 0), V5=ifelse(ObservationCount6 %in% c("W", "C", "V", "U"), 1, 0), V6=ifelse(ObservationCount7 %in% c("W", "C", "V", "U"), 1, 0)) %>% 
+select(-ObservationDescriptor, -ObservationCount, -ObservationDescriptor2, -ObservationCount2, -ObservationDescriptor3, -ObservationCount3, -ObservationDescriptor4, -ObservationCount4, -ObservationDescriptor5, -ObservationCount5, -ObservationDescriptor6, -ObservationCount6, -ObservationDescriptor7, -ObservationCount7,
+-ObservationDescriptor8, -ObservationCount8,
+-ObservationDescriptor9, -ObservationCount9, -X.1, -X, -Locality, -SamplingEventIdentifier)
+
+#select just target species
+dat<-dat %>% filter(CommonName %in% c("Common Nighthawk", "Common Poorwill", "Eastern Whip-poor-will"))
+
+species.list <- unique(dat$CommonName)
+
+## Create the speciesloop
+for(m in 1:length(species.list)) {
+  
+  # for testing each species
+m<-3 
+   
+  sp.data <-NULL 
+  sp.data <- filter(dat, CommonName == species.list[m]) %>%
+      droplevels()
+  
+ 
+  
+} # end loop
+
+
+```
+
+

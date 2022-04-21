@@ -1,0 +1,107 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+# Data Summaries {#Start3}
+
+```{r tidyr3, include = FALSE, warning = FALSE}
+
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=50), tidy = FALSE)
+
+```
+
+Let's create some data summaries to see what is going on with the Nightjar survey program.
+
+First, import the data and reload your libraries if you are starting a new session. 
+```{r data lib, message=FALSE, eval=FALSE}
+
+require(tidyverse)
+require(lubridate)
+require(data.table)
+require(reshape)
+require(tibble)
+
+dat<-read.csv("Data/Filter_Nightjar.csv")
+
+out.dir <- paste("Output/")
+dat.dir <- paste("Data/")
+
+```
+
+Look at the number of stops per route in each year. Keep in mind that anything between 6 - 12 stops per route is normal. We therefore append the number of stop to the original dataframe in order to allow for effort correction later in the analysis  
+```{r nstop, eval=FALSE, message=FALSE}
+
+nstop<-dat %>% group_by(survey_year, SiteCode) %>% summarize(nstop=n_distinct(SurveyAreaIdentifier))
+
+dat<-left_join(dat, nstop, by=c("survey_year", "SiteCode"))
+
+#Useful table for the coordinator to check that the data are entered properly.
+nstop1<-cast(nstop, SiteCode~survey_year, value = "nstop")
+write.csv(nstop1, "Output/Nigthjar.nstop.csv")
+
+write.csv(dat, "Data/Filter_Nightjar.csv")
+
+```
+
+Create an survey events layer for when we need to zero-fill the data matrix. 
+```{r zero, eval= FALES, message=FALSE}
+
+event.data <- dat %>%
+select(SamplingEventIdentifier, SurveyAreaIdentifier, SiteCode, survey_year, CollectorNumber, Prov, nstop) %>%  
+distinct(SamplingEventIdentifier, .keep_all=TRUE) %>%
+as.data.frame()
+
+write.csv(event.data, "Output/Events.csv")
+```
+
+
+Count the number of routes per years and province
+```{r nroute, message=FALSE, eval=FALSE}
+nroute<-dat %>% group_by(survey_year) %>% summarize(nroute=n_distinct(SiteCode))
+
+nroute_prov<-dat %>% group_by(survey_year, Prov) %>% summarize(nroute_prov= n_distinct(SiteCode))
+
+nroute_prov1<-cast(nroute_prov, survey_year~Prov, value="nroute_prov")
+write.csv(nroute_prov1, "Output/Nigthjar.nroute.prov.csv")
+
+```
+
+Count the number of birds detected
+```{r nbirds, message=FALSE, eval=FALSE}
+
+ncount<-dat %>% filter(ObservationCount==1) %>% droplevels()
+ncount<-ncount %>% filter(CommonName %in% c("Common Nighthawk", "Common Poorwill", "Eastern Whip-poor-will"))
+ncount<-ncount %>% group_by(survey_year, CommonName) %>% summarise(ncount=sum(ObservationCount))
+
+ncount<-cast(ncount, survey_year~CommonName, value="ncount")
+write.csv(ncount, "Output/Nighjar.ncount.csv")
+
+```
+
+Mean count per route, for three target species
+
+```{r mean}
+
+r_mean<-dat %>% filter(ObservationCount==1) %>% droplevels()
+r_mean<-r_mean %>% filter(CommonName %in% c("Common Nighthawk", "Common Poorwill", "Eastern Whip-poor-will"))
+r_mean<-r_mean %>% group_by(survey_year, Prov, CommonName) %>% summarise(r_tot=sum(ObservationCount))
+
+r_mean<-left_join(r_mean, nroute_prov, by=c("survey_year", "Prov"))
+
+r_mean<-r_mean %>% mutate(r_mean=r_tot/nroute_prov)
+
+##Plot is ugly
+#ggplot(r_mean, aes(survey_year, r_mean))+
+#  geom_line(aes(colour=Prov), size=1)+
+#  facet_wrap(~CommonName, scales='free')+
+#  theme_classic()+
+#  theme(text=element_text(size=20))
+
+```
+
+Species specific processing notes: 
+Any six-stop routes in the system at the moment from BC, AB and SK would be surveyed too early in the evening to pick up Common Poorwills, and that these routes should be removed for any analyses for this species, but they would still be okay for Common Nighthawks. First 6 stops best for Common Nighthawks and the second for either Common Poorwills or Eastern Whip-poor-wills
+
+

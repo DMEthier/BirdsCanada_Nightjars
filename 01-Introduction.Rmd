@@ -1,0 +1,70 @@
+# Introduction {#Intro1}
+
+```{r tidyr1, echo = FALSE, message = FALSE, warning = FALSE}
+
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=50), tidy = FALSE)
+
+```
+
+## The Canadian Nightjar Survey {#intro1.1}
+
+Nightjars are a family of birds that forage for flying insects at night. The species nesting in Canada are migratory, with the Common Nighthawk, for example, being found as far south as Argentina during the non-breeding season. These beautifully marked birds have long pointed wings for sustained flight, and are highly camouflaged because they spend the day on a branch or on the ground.
+
+The need to conduct surveys for Nightjars in Canada has been identified for several reasons:
+
+-  Relatively little is known about them due to their nocturnal habits.
+
+-  Two of our species, the Common Nighthawk and the Eastern Whip-poor-will, are already listed as Threatened under the federal Species at Risk Act (SARA).
+
+-  Nightjars belong to a larger guild of birds, the aerial insectivores, which are thought to be declining across North America.
+
+The [Canadian Nightjar Survey](https://www.birdscanada.org/naturecounts/nightjars/main.jsp), now managed by [Birds Canada](https://www.birdscanada.org/) is tailored to all three species and the data will provide information on distribution, abundance, habitat associations, and population trends, which are critical for conservation and management efforts. 
+
+## Protocol {#intro1.2}
+
+Participating volunteers enjoy a soft summer night, among the fireflies, looking and listening for these unique and special species. 
+
+Below is a quick overview of the survey protocol:
+
+-  Surveys are conducted once between June 15 and July 15. Surveys should not be done when wind speed is greater than Beaufort Scale 3 or rain is stronger than a light drizzle. 
+
+-  Surveys begin at 30 minutes before sunset. Each survey takes ~ 10 mins including travel time to the next stop, for a total survey time of 2 hours. 
+
+-  At each survey, the time the survey began is recorded along with wind strength, cloud cover, whether the moon is visible, the level of background noise, and the number of cars that pass.
+
+-  Each route consists of 6 to 12 survey stops spaced at least 1.6 km apart and numbered consecutively. 
+
+-  The survey period is broken into six one-minute intervals on the data sheet. For each bird detected in each one-minute interval, a code is assigned for the highest ranked detection type: 
+    1. W (wing-boom, Common Nighthawks only) 
+    2. C (call) 
+    3. V (visual) 
+    4. N (not detected) 
+    5. U (only prior to 2000, these minute by minute detections should be removed from a formal analysis)
+
+-  Each line on the data sheet represents an individual bird’s detection history. 
+
+- The repeat box is used to record whether the observer thinks the same bird was recorded at a previous stop or not. 
+
+-  The observer records distance (< 100 m or > 100 m) and direction to first detection.
+
+Additional data collection details can be found [here](https://www.birdscanada.org/naturecounts/nightjars/resources.jsp?dir=Survey%20Protocol-Protocole%20d%27inventaire). 
+
+## Getting Involved {#intro1.3}
+
+The Canadian Nightjar Survey needs volunteers to conduct surveys to help us understand and conserve these unique species. To volunteer or to obtain more information about the Survey and available routes, contact your (regional coordinator)[https://www.birdscanada.org/naturecounts/nightjars/main.jsp].
+
+Thank you for your contribution and participation!
+
+## Goal {#intro1.4}
+
+The goal of this online ‘handbook’ is to demonstrate how to use the R statistical programming language (https://www.r-project.org/) to import, clean, and explore the Nightjar survey data through visualizations, summaries, and various analytic procedures. We hope the contents will be useful to researchers interested in using the data for independent research. If you have suggestions for additional examples, please let us know by emailing dethier@birdscanada.org.
+
+## Prerequisites {#intro1.5}
+
+This book assumes that you have a basic understanding of R. Regardless of whether you are new to R or not, we highly recommend that you become familiar with ‘R for Data Science’ by Garrett Grolemund and Hadley Wickham (http://r4ds.had.co.nz/). Their book covers how to import, visualize, and summarize data in R using the tidyverse collection of R packages (https://www.tidyverse.org/). It also provides an invaluable framework for organizing your workflow to create clean, reproducible code (http://r4ds.had.co.nz/workflow-projects.html). We follow their lead by, wherever possible, using the tidyverse framework throughout this book.
+
+## Acknowledgements {#intro1.6}
+
+WildResearch developed the national-scale monitoring program for Nightjars, and maintained the program from 2010 – 2020. In 2020, the program became the Canadian Nightjar Survey and was moved to Birds Canada for long-term management, with support from Environment and Climate Change Canada. Thanks to all the volunteers, both past and present, for you contributions to this program. 
+
