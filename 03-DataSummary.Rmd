@@ -20,7 +20,7 @@ First, import the data and reload your libraries if you are starting a new sessi
 require(tidyverse)
 require(lubridate)
 require(data.table)
-require(reshape)
+require(reshape2)
 require(tibble)
 
 dat<-read.csv("Data/Filter_Nightjar.csv")
@@ -56,7 +56,6 @@ as.data.frame()
 write.csv(event.data, "Output/Events.csv")
 ```
 
-
 Count the number of routes per years and province
 ```{r nroute, message=FALSE, eval=FALSE}
 nroute<-dat %>% group_by(survey_year) %>% summarize(nroute=n_distinct(SiteCode))
@@ -65,6 +64,12 @@ nroute_prov<-dat %>% group_by(survey_year, Prov) %>% summarize(nroute_prov= n_di
 
 nroute_prov1<-cast(nroute_prov, survey_year~Prov, value="nroute_prov")
 write.csv(nroute_prov1, "Output/Nigthjar.nroute.prov.csv")
+
+plot_route<-ggplot(nroute_prov, aes(survey_year, nroute_prov))+
+  geom_line(aes(colour=Prov), size=1)+
+  theme_classic()+
+  theme(text=element_text(size=20))+
+  ylab("Number of Routes")
 
 ```
 
@@ -105,3 +110,84 @@ Species specific processing notes:
 Any six-stop routes in the system at the moment from BC, AB and SK would be surveyed too early in the evening to pick up Common Poorwills, and that these routes should be removed for any analyses for this species, but they would still be okay for Common Nighthawks. First 6 stops best for Common Nighthawks and the second for either Common Poorwills or Eastern Whip-poor-wills
 
 
+#now we will make a summary of the mean species per year. This needs to be a zero-filld data matrix. 
+```{r speciesdat, echo = TRUE, message = FALSE}
+
+#select desired data columns for analysis
+obs<-dat %>% select("CommonName", "SamplingEventIdentifier", "SurveyAreaIdentifier", "SiteCode", "survey_year", "CollectorNumber", "Prov", "ObservationCount")
+
+#select just target species
+obs<-obs %>% filter(CommonName %in% c("Common Nighthawk", "Common Poorwill", "Eastern Whip-poor-will"))
+
+```
+
+We are ready to develop the species-specific analysis loop
+
+```{r sp.loop, echo = TRUE, message = FALSE}
+
+## Generate species list for analysis. The species that make the cut will vary on province based on the data manipulation
+
+species.list <- unique(obs$CommonName)
+
+# Create output table before entering the loop
+mean_count<- as.data.frame(matrix(data = NA, nrow = 1, ncol = 4, byrow = FALSE, dimnames = NULL))
+
+names(mean_count) <- c("Prov", "survey_year", "meancount", "Species")
+
+write.table(mean_count, file = paste(out.dir,"Nightjar.meancount.csv", sep=""), row.names = FALSE, append = TRUE, col.names = TRUE, quote = FALSE, sep = ",")
+
+
+## Create the loop
+for(m in 1:length(species.list)) {
+
+# for testing each species
+# m<-3 
+   
+  sp.data <-NULL 
+  sp.data <- filter(obs, CommonName == species.list[m]) %>%
+      droplevels()
+  
+  print(paste("Currently analyzing species ", m, "/", species.list[m], sep = "")) 
+
+##-----------------------------------------------------------
+
+#zero fill by merging with the events data frame. 
+sp.data <- left_join(event.data, sp.data, by = c("SamplingEventIdentifier", "SurveyAreaIdentifier",  "SiteCode", "survey_year", "CollectorNumber", "Prov")) %>% mutate(ObservationCount = replace(ObservationCount, is.na(ObservationCount), 0))
+
+##----------------------------------------------------------
+
+# Limit to species observed at least once per route 
+
+# Summarize survey site to determine which species have been observed at least once (looking at the total count column) those with sum <= 1 across all survey years will be dropped from analysis (implies never observed on a route (i.e., outside range or inappropriate habitat))
+
+  site.summ <- melt(sp.data, id.var = "SiteCode",	measure.var = "ObservationCount")
+  site.summ$value<-as.numeric(site.summ$value)
+  site.summ <- cast(site.summ, SiteCode ~ variable,	fun.aggregate="sum")
+  site.sp.list <- unique(subset(site.summ, select = c("SiteCode"), ObservationCount >= 1))
+
+# Limit raw data to these species, i.e., those that were observed at least once on a route 
+  sp.data <- merge(sp.data, site.sp.list, by = c("SiteCode"))
+
+##-----------------------------------------------------------
+
+# Count the number of individuals per route as the response variable. The number of stop on a route will used as a covariate or offset in the model to control for route level effort.  
+
+sp.data$ObservationCount<-as.numeric(sp.data$ObservationCount)
+sp.data<-sp.data %>% group_by(SiteCode, survey_year, CollectorNumber, Prov, nstop) %>% summarise(count=sum(ObservationCount))
+
+##Calculate mean count per province per year
+
+sp.data<-as.data.frame(sp.data)
+
+mean_count<-sp.data %>% group_by(Prov, survey_year) %>% summarize(mean_count=mean(count))
+mean_count$Species<-species.list[m]
+
+write.table(mean_count, file = paste(out.dir,"Nightjar.meancount.csv", sep=""), row.names = FALSE, append = TRUE, col.names = FALSE, quote = FALSE, sep = ",")
+
+}#end species loop  
+
+#now we can import the full data table and plot the results
+
+mean_count<-read.csv("Output/Nightjar.meancount.csv")
+
+```
